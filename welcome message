@@ -1,0 +1,18 @@
+@Welcome_bot.event
+async def on_member_join(member):
+    # Get the welcome channel by its ID
+    welcome_channel = Welcome_bot.get_channel(1237403200215056386)
+    
+    # If the welcome channel is found, send a welcome message
+    if welcome_channel:
+        message = f"Welcome to the server, {member.name}!"
+        await welcome_channel.send(message)
+        await member.send(message)
+    else:
+        print("Error: Welcome channel not found. Please check the channel ID.")
+
+# Load the bot token from the .env file
+TOKEN = decouple.config("TOKEN")
+
+# Run the bot with the loaded token
+Welcome_bot.run(TOKEN)

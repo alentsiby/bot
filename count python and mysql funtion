@@ -1,0 +1,76 @@
+import discord
+from discord.ext import commands
+import pymysql.cursors
+from decouple import config
+
+intents = discord.Intents.all()
+
+# Connect to MySQL database
+db_connection = pymysql.connect(
+    host='localhost',
+    user='root',
+    password='@As2005#',
+    database='discord_word_count',
+    charset='utf8mb4',
+    cursorclass=pymysql.cursors.DictCursor
+)
+
+# Initialize the bot with intents
+Welcome_bot = commands.Bot(command_prefix='/', intents=intents)
+
+# Event: When a message is sent
+@Welcome_bot.event
+async def on_message(message):
+    if message.author.bot:
+        return
+    
+    # Extract words from the message
+    words = message.content.split()
+    
+    # Insert words into the database with user ID
+    with db_connection.cursor() as cursor:
+        for word in words:
+            cursor.execute("INSERT INTO user_words (discord_id, word) VALUES (%s, %s)", (message.author.id, word))
+        db_connection.commit()
+    
+    await Welcome_bot.process_commands(message)
+
+# Command: /word-status
+@Welcome_bot.command()
+async def word_status(ctx):
+    with db_connection.cursor() as cursor:
+        cursor.execute("SELECT word, COUNT(*) AS count FROM user_words GROUP BY word ORDER BY count DESC LIMIT 10")
+        result = cursor.fetchall()
+    
+    output = '\n'.join(f'{word["word"]}: {word["count"]}' for word in result)
+    await ctx.send(output)
+
+# Command: /user-status <user>
+@Welcome_bot.command()
+async def user_status(ctx, user: discord.Member):
+    with db_connection.cursor() as cursor:
+        cursor.execute("SELECT word, COUNT(*) AS count FROM user_words WHERE discord_id = %s GROUP BY word ORDER BY count DESC LIMIT 10", (user.id,))
+        result = cursor.fetchall()
+    
+    output = '\n'.join(f'{word["word"]}: {word["count"]}' for word in result)
+
+
+  \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+CREATE DATABASE discord_word_count;
+USE discord_word_count;
+CREATE TABLE user_words (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    discord_id VARCHAR(255),
+    word VARCHAR(255)
+);
+GRANT ALL PRIVILEGES ON discord_word_count.* TO 'root'@'localhost';
+FLUSH PRIVILEGES;
+
+
+
+    await ctx.send(output)
+
+# Run the bot with your bot token
+TOKEN = config("TOKEN")
+Welcome_bot.run(TOKEN)
